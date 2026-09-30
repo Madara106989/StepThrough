@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StepThrough – visualize your code step by step</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root{--bg:#f3f5f7;--panel:#fff;--ink:#16202a;--mute:#66727e;--line:#d8dee4;--acc:#0f766e;--accbg:#d5f0ec;--hi:#fff3bf;--chg:#ffe1c2;--err:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1519;--panel:#171f25;--ink:#e6ecf0;--mute:#8a98a4;--line:#2a353e;--acc:#4fd1c0;--accbg:#12403b;--hi:#4a4213;--chg:#5a3a17;--err:#ff8a7a}}
+:root[data-theme="dark"]{--bg:#0f1519;--panel:#171f25;--ink:#e6ecf0;--mute:#8a98a4;--line:#2a353e;--acc:#4fd1c0;--accbg:#12403b;--hi:#4a4213;--chg:#5a3a17;--err:#ff8a7a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+.mono,textarea,.code{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+header{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{font-size:18px;margin:0 8px 0 0;font-weight:600}
+select,button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--acc);border-color:var(--acc);color:var(--bg);font-weight:600}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;padding:14px 18px;max-width:1300px;margin:0 auto}
+@media (max-width:820px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+.ph{padding:8px 14px;border-bottom:1px solid var(--line);color:var(--mute);font-size:13px;display:flex;justify-content:space-between;gap:8px}
+textarea{width:100%;height:380px;border:0;background:transparent;color:var(--ink);padding:12px 14px;font-size:13.5px;line-height:1.6;resize:vertical;tab-size:2}
+.code{height:380px;overflow:auto;font-size:13.5px;padding:8px 0}
+.ln{display:flex;white-space:pre;padding:0 14px 0 0;line-height:1.6}
+.ln b{flex:none;width:44px;text-align:right;padding-right:12px;color:var(--mute);font-weight:400;user-select:none}
+.ln.cur{background:var(--hi);box-shadow:inset 3px 0 var(--acc)}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.ctl input[type=range]{flex:1;min-width:120px;accent-color:var(--acc)}
+#info{padding:8px 14px;border-top:1px solid var(--line);font-size:14px;min-height:38px}
+#stack{padding:12px;display:flex;flex-direction:column;gap:8px;min-height:200px;max-height:420px;overflow:auto}
+.fr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg)}
+.fr.top{border-color:var(--acc);background:var(--accbg)}
+.fr h3{margin:0 0 4px;font-size:13px;font-family:"IBM Plex Mono",monospace;font-weight:500}
+.vr{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:flex-start}
+.v{font-family:"IBM Plex Mono",monospace;font-size:13px;padding:1px 6px;border-radius:4px}
+.v.chg{background:var(--chg)}
+.v i{font-style:normal;color:var(--mute)}
+.arr{display:inline-flex;vertical-align:top;margin-left:4px}
+.cell{border:1px solid var(--line);min-width:30px;text-align:center;padding:0 5px;background:var(--panel)}
+.cell.chg{background:var(--chg)}
+.cell small{display:block;color:var(--mute);font-size:10px;border-top:1px solid var(--line)}
+#out{margin:0;padding:10px 14px;min-height:60px;max-height:140px;overflow:auto;font-size:13px;white-space:pre-wrap}
+#err{display:none;margin:0 18px;padding:10px 14px;border:1px solid var(--err);color:var(--err);border-radius:6px;max-width:1264px}
+@media (min-width:1300px){#err{margin:0 auto}}
+.empty{color:var(--mute);padding:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>StepThrough</h1>
+  <label>Language <select id="lang" aria-label="Language">
+    <option value="js">JavaScript</option>
+    <option value="py">Python</option>
+    <option disabled>C / C++ (coming soon)</option>
+    <option disabled>Java (coming soon)</option>
+  </select></label>
+  <label>Example <select id="ex" aria-label="Example"></select></label>
+  <button class="primary" id="run">Visualize</button>
+  <button id="edit" disabled>Edit code</button>
+</header>
+<div id="err" role="alert"></div>
+<main>
+  <section class="panel">
+    <div class="ph"><span id="ctitle">Your code</span><span>Click the code to edit · Ctrl+Enter runs · ← → step</span></div>
+    <textarea id="src" spellcheck="false" aria-label="Code editor"></textarea>
+    <div class="code" id="code" hidden></div>
+    <div class="ctl">
+      <button id="first" disabled aria-label="First step">⏮</button>
+      <button id="prev" disabled>◀ Back</button>
+      <button id="play" disabled>▶ Play</button>
+      <button id="next" disabled>Next ▶</button>
+      <button id="last" disabled aria-label="Last step">⏭</button>
+      <input type="range" id="slider" min="0" max="0" value="0" disabled aria-label="Step">
+      <span id="cnt" class="mono">0 / 0</span>
+    </div>
+    <div id="info">Write or pick some code, then press Visualize.</div>
+  </section>
+  <div style="display:grid;gap:14px;align-content:start;min-width:0">
+    <section class="panel"><div class="ph"><span>Call stack &amp; variables</span><span>newest call on top</span></div><div id="stack"><div class="empty">Nothing running yet.</div></div></section>
+    <section class="panel"><div class="ph"><span>Console output</span></div><pre id="out" class="mono"></pre></section>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/acorn/8.11.3/acorn.min.js"></script>
+<script>
+const EXJS={
+"Factorial (recursion)":`function factorial(n) {
+  if (n <= 1) {
+    return 1;
+  }
+  const rest = factorial(n - 1);
+  return n * rest;
+}
+
+const answer = factorial(4);
+console.log("4! =", answer);`,
+"Fibonacci (recursion)":`function fib(n) {
+  if (n < 2) return n;
+  const a = fib(n - 1);
+  const b = fib(n - 2);
+  return a + b;
+}
+
+console.log("fib(4) =", fib(4));`,
+"Bubble sort":`const arr = [5, 2, 8, 1, 4];
+for (let i = 0; i < arr.length - 1; i++) {
+  for (let j = 0; j < arr.length - 1 - i; j++) {
+    if (arr[j] > arr[j + 1]) {
+      const tmp = arr[j];
+      arr[j] = arr[j + 1];
+      arr[j + 1] = tmp;
+    }
+  }
+}
+console.log(arr);`,
+"Binary search":`function search(a, target) {
+  let lo = 0, hi = a.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (a[mid] === target) return mid;
+    if (a[mid] < target) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return -1;
+}
+const data = [1, 3, 5, 7, 9, 11, 13];
+console.log(search(data, 11));`,
+"Tower of Hanoi":`function hanoi(n, from, to, via) {
+  if (n === 0) return;
+  hanoi(n - 1, from, via, to);
+  console.log("move disk " + n + " " + from + "->" + to);
+  hanoi(n - 1, via, to, from);
+}
+hanoi(3, "A", "C", "B");`
+};
+const EXPY={
+"Factorial (recursion)":`def factorial(n):
+    if n <= 1:
+        return 1
+    rest = factorial(n - 1)
+    return n * rest
+
+answer = factorial(4)
+print("4! =", answer)`,
+"Fibonacci (recursion)":`def fib(n):
+    if n < 2:
+        return n
+    a = fib(n - 1)
+    b = fib(n - 2)
+    return a + b
+
+print("fib(4) =", fib(4))`,
+"Bubble sort":`arr = [5, 2, 8, 1, 4]
+n = len(arr)
+for i in range(n - 1):
+    for j in range(n - 1 - i):
+        if arr[j] > arr[j + 1]:
+            arr[j], arr[j + 1] = arr[j + 1], arr[j]
+print(arr)`,
+"Binary search":`def search(a, target):
+    lo, hi = 0, len(a) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if a[mid] == target:
+            return mid
+        if a[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1
+
+data = [1, 3, 5, 7, 9, 11, 13]
+print(search(data, 11))`,
+"Tower of Hanoi":`def hanoi(n, src, dst, via):
+    if n == 0:
+        return
+    hanoi(n - 1, src, via, dst)
+    print("move disk", n, src, "->", dst)
+    hanoi(n - 1, via, dst, src)
+
+hanoi(3, "A", "C", "B")`
+};
+const EXS={js:EXJS,py:EXPY};
+const $=id=>document.getElementById(id);
+const src=$("src"), exSel=$("ex"), langSel=$("lang");
+function loadExamples(){exSel.replaceChildren();Object.keys(EXS[langSel.value]).forEach(k=>exSel.add(new Option(k,k)));src.value=EXS[langSel.value][exSel.value]}
+langSel.onchange=()=>{loadExamples();backToEdit()};
+exSel.onchange=()=>{src.value=EXS[langSel.value][exSel.value];backToEdit()};
+loadExamples();
+src.addEventListener("keydown",e=>{if(e.key==="Tab"){e.preventDefault();const s=src.selectionStart;src.setRangeText(langSel.value==="py"?"    ":"  ",s,src.selectionEnd,"end")}});
+
+const MAX_STEPS=1500, MAX_DEPTH=150;
+
+/* ---------- 1. Instrument: insert trace calls before every statement ---------- */
+function instrument(code){
+  const ast=acorn.parse(code,{ecmaVersion:2022,locations:true});
+  const ins=[];let q=0;
+  const add=(p,s,r)=>ins.push({p,s,r,q:q++});           // r=0 closer, r=1 opener
+  const isFn=n=>n.type==="FunctionDeclaration"||n.type==="FunctionExpression"||n.type==="ArrowFunctionExpression";
+  const pat=(p,set)=>{if(!p)return;
+    if(p.type==="Identifier")set.add(p.name);
+    else if(p.type==="ArrayPattern")p.elements.forEach(e=>pat(e,set));
+    else if(p.type==="ObjectPattern")p.properties.forEach(x=>pat(x.value||x.argument,set));
+    else if(p.type==="RestElement")pat(p.argument,set);
+    else if(p.type==="AssignmentPattern")pat(p.left,set)};
+  const collect=(n,set)=>{if(!n||typeof n.type!=="string")return;
+    if(n.type==="VariableDeclaration")n.declarations.forEach(d=>pat(d.id,set));
+    if(n.type==="FunctionDeclaration"){if(n.id)set.add(n.id.name);return}
+    if(isFn(n))return;
+    for(const k in n){if(k==="loc")continue;const c=n[k];
+      if(Array.isArray(c))c.forEach(x=>collect(x,set));else if(c&&typeof c.type==="string")collect(c,set)}};
+  const thunk=set=>"()=>["+[...set].map(n=>`["${n}",()=>${n}]`).join(",")+"]";
+  const trace=(node,th)=>`__t(${node.loc.start.line},${th});`;
+  const skip=s=>s.type==="FunctionDeclaration"||s.type==="ClassDeclaration"||s.type==="EmptyStatement";
+  const wrap=(c,th)=>{if(c&&c.type!=="BlockStatement"){add(c.start,"{"+trace(c,th),1);add(c.end,"}",0)}};
+
+  function visit(n,th){
+    if(!n||typeof n.type!=="string")return;
+    if(n.type==="VariableDeclarator"&&n.init&&isFn(n.init)&&n.id.name)n.init._n=n.id.name;
+    if(isFn(n)){
+      const set=new Set();n.params.forEach(p=>pat(p,set));collect(n.body,set);th=thunk(set);
+      if(n.body.type==="BlockStatement"){
+        add(n.body.start+1,`__e(${JSON.stringify(n.id?n.id.name:n._n||"anonymous")});try{`,1);
+        add(n.body.end-1,"}finally{__x()}",0);
+      }
+    }
+    if(n.type==="BlockStatement"||n.type==="Program")n.body.forEach(s=>{if(!skip(s))add(s.start,trace(s,th),1)});
+    if(n.type==="SwitchCase")n.consequent.forEach(s=>{if(!skip(s))add(s.start,trace(s,th),1)});
+    if(n.type==="IfStatement"){wrap(n.consequent,th);if(n.alternate&&n.alternate.type!=="IfStatement")wrap(n.alternate,th)}
+    if(/^(For|ForIn|ForOf|While|DoWhile)Statement$/.test(n.type))wrap(n.body,th);
+    for(const k in n){if(k==="loc")continue;const c=n[k];
+      if(Array.isArray(c))c.forEach(x=>visit(x,th));else if(c&&typeof c.type==="string")visit(c,th)}
+  }
+  const g=new Set();collect(ast,g);visit(ast,thunk(g));
+  ins.sort((a,b)=>a.p-b.p||a.r-b.r||(a.r?a.q-b.q:b.q-a.q));
+  let out="",last=0;
+  for(const i of ins){out+=code.slice(last,i.p)+i.s;last=i.p}
+  return out+code.slice(last);
+}
+
+/* ---------- 2. Run instrumented code, record a snapshot per step ---------- */
+function fmt(v){
+  if(typeof v==="string")return JSON.stringify(v);
+  if(v===undefined)return "undefined";
+  if(typeof v==="function")return "ƒ";
+  try{const s=JSON.stringify(v);return s===undefined?String(v):(s.length>50?s.slice(0,47)+"…":s)}catch(e){return String(v)}
+}
+function ser(v){return Array.isArray(v)?{arr:v.slice(0,30).map(fmt),more:v.length>30}:fmt(v)}
+function evalVars(th){
+  const o=[];if(!th)return o;
+  let list;try{list=th()}catch(e){return o}
+  for(const [n,get] of list){try{const v=get();if(typeof v!=="function")o.push([n,ser(v)])}catch(e){}}
+  return o;
+}
+function record(code){
+  const js=instrument(code);
+  const steps=[],frames=[{name:"global",th:null}],outLines=[];
+  const cons={log:(...a)=>outLines.push(a.map(x=>typeof x==="string"?x:fmt(x)).join(" "))};
+  cons.info=cons.warn=cons.error=cons.log;
+  const __t=(line,th)=>{
+    if(steps.length>=MAX_STEPS)throw new Error("Stopped after "+MAX_STEPS+" steps (possible infinite loop).");
+    frames[frames.length-1].th=th;
+    steps.push({line,out:outLines.length,stack:frames.map(f=>({name:f.name,vars:evalVars(f.th)}))});
+  };
+  const __e=name=>{if(frames.length>MAX_DEPTH)throw new RangeError("Recursion too deep (over "+MAX_DEPTH+" calls). Missing base case?");frames.push({name,th:null})};
+  const __x=()=>{frames.pop()};
+  let error=null;
+  try{new Function("__t","__e","__x","console",js)(__t,__e,__x,cons)}catch(e){error=e.message||String(e)}
+  return {steps,outLines,error};
+}
+
+/* ---------- 3. UI ---------- */
+let R=null,cur=0,timer=null;
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
+function backToEdit(){stop();R=null;src.hidden=false;$("code").hidden=true;$("ctitle").textContent="Your code";$("edit").disabled=true;
+  ["first","prev","play","next","last","slider"].forEach(i=>$(i).disabled=true);$("cnt").textContent="0 / 0";
+  $("stack").replaceChildren(el("div","empty","Nothing running yet."));$("out").textContent="";$("err").style.display="none";$("info").textContent="Write or pick some code, then press Visualize."}
+function stop(){clearInterval(timer);timer=null;$("play").textContent="▶ Play"}
+
+const PYSRC=`
+import sys, io, json, types
+_SKIP=(types.FunctionType,types.BuiltinFunctionType,types.ModuleType,type)
+def _fmt(v):
+    s=repr(v)
+    return s if len(s)<=50 else s[:47]+"..."
+def _ser(v):
+    if isinstance(v,(list,tuple)):
+        return {"arr":[_fmt(x) for x in v[:30]],"more":len(v)>30}
+    return _fmt(v)
+def _trace(code,max_steps,max_depth):
+    steps=[]; buf=io.StringIO(); err=[None]; depth=[0]
+    def snap(frame):
+        chain=[]; f=frame
+        while f is not None:
+            if f.f_code.co_filename=="<user>": chain.append(f)
+            f=f.f_back
+        chain.reverse(); stack=[]
+        for f in chain:
+            name="global" if f.f_code.co_name=="<module>" else f.f_code.co_name
+            vs=[[k,_ser(v)] for k,v in list(f.f_locals.items()) if not k.startswith("__") and not isinstance(v,_SKIP)]
+            stack.append({"name":name,"vars":vs})
+        return stack
+    def tracer(frame,event,arg):
+        if frame.f_code.co_filename!="<user>": return None
+        if event=="call":
+            depth[0]+=1
+            if depth[0]>max_depth: raise RecursionError("Recursion too deep (over %d calls). Missing base case?"%max_depth)
+        elif event=="return":
+            depth[0]-=1
+            if frame.f_code.co_name=="<module>" and len(steps)<max_steps:
+                steps.append({"line":frame.f_lineno,"stack":snap(frame),"txt":buf.getvalue()[-5000:]})
+        elif event=="line":
+            if len(steps)>=max_steps: raise RuntimeError("Stopped after %d steps (possible infinite loop)."%max_steps)
+            steps.append({"line":frame.f_lineno,"stack":snap(frame),"txt":buf.getvalue()[-5000:]})
+        return tracer
+    old=sys.stdout; sys.stdout=buf
+    try:
+        compiled=compile(code,"<user>","exec")
+        sys.settrace(tracer)
+        exec(compiled,{"__name__":"__main__"})
+    except SyntaxError as e:
+        err[0]="SyntaxError: %s (line %s)"%(e.msg,e.lineno)
+    except BaseException as e:
+        err[0]="%s: %s"%(type(e).__name__,e)
+    finally:
+        sys.settrace(None); sys.stdout=old
+    return json.dumps({"steps":steps,"err":err[0]})
+`;
+let pyo=null;
+async function getPy(){
+  if(pyo)return pyo;
+  $("info").textContent="Loading the Python runtime (about 10 MB, first time only)…";
+  if(!window.loadPyodide)await new Promise((ok,bad)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";s.onload=ok;s.onerror=()=>bad(new Error("Could not load the Python runtime. Check your internet connection."));document.head.appendChild(s)});
+  pyo=await loadPyodide();pyo.runPython(PYSRC);return pyo;
+}
+async function recordPy(code){
+  const py=await getPy();
+  const res=JSON.parse(py.globals.get("_trace")(code,MAX_STEPS,MAX_DEPTH));
+  return {steps:res.steps,outLines:[],error:res.err};
+}
+$("run").onclick=async()=>{
+  stop();const err=$("err");err.style.display="none";
+  try{
+    $("run").disabled=true;
+    R=langSel.value==="py"?await recordPy(src.value):record(src.value);
+  }catch(e){
+    err.textContent=(langSel.value==="py"?"":"Syntax error: ")+e.message;err.style.display="block";return
+  }finally{$("run").disabled=false}
+  if(!R.steps.length){err.textContent=R.error||"No executable statements found.";err.style.display="block";return}
+  if(R.error){err.textContent="Runtime error: "+R.error+" (showing steps up to that point)";err.style.display="block"}
+  const box=$("code");box.replaceChildren();
+  src.value.split("\n").forEach((t,i)=>{const d=el("div","ln");d.appendChild(el("b","",String(i+1)));d.appendChild(el("span","",t||" "));d.id="l"+(i+1);box.appendChild(d)});
+  src.hidden=true;box.hidden=false;$("ctitle").textContent="Stepping through your code";
+  $("edit").disabled=false;$("slider").max=R.steps.length-1;
+  ["first","prev","play","next","last","slider"].forEach(i=>$(i).disabled=false);
+  show(0);
+};
+const goEdit=()=>{backToEdit();src.focus()};
+$("edit").onclick=goEdit;
+$("code").onclick=goEdit;
+$("code").title="Click to edit the code";
+$("code").style.cursor="text";
+src.addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();$("run").click()}});
+
+function renderVal(v,chg){
+  if(typeof v==="string"){return el("span","",v)}
+  const w=el("span","arr");
+  v.arr.forEach((c,i)=>{const d=el("div","cell"+(chg&&chg.has(i)?" chg":""),c);d.appendChild(el("small","",String(i)));w.appendChild(d)});
+  if(v.more)w.appendChild(el("span","","…"));
+  if(!v.arr.length)w.appendChild(el("span","","[ ]"));
+  return w;
+}
+function show(i){
+  cur=Math.max(0,Math.min(R.steps.length-1,i));
+  const s=R.steps[cur],p=cur>0?R.steps[cur-1]:null;
+  document.querySelectorAll(".ln.cur").forEach(x=>x.classList.remove("cur"));
+  const L=$("l"+s.line);if(L){L.classList.add("cur");const b=$("code");
+    if(L.offsetTop<b.scrollTop+20||L.offsetTop>b.scrollTop+b.clientHeight-40)b.scrollTop=L.offsetTop-b.clientHeight/2}
+  const st=$("stack");st.replaceChildren();
+  for(let d=s.stack.length-1;d>=0;d--){
+    const f=s.stack[d],pf=p&&p.stack[d]&&p.stack[d].name===f.name?p.stack[d]:null;
+    const box=el("div","fr"+(d===s.stack.length-1?" top":""));
+    box.appendChild(el("h3","",f.name==="global"?"global":f.name+"()"));
+    const row=el("div","vr");
+    if(!f.vars.length)row.appendChild(el("span","v i","no variables yet"));
+    f.vars.forEach(([n,v])=>{
+      const old=pf&&pf.vars.find(x=>x[0]===n);
+      const changed=!old||JSON.stringify(old[1])!==JSON.stringify(v);
+      let cells=null;
+      if(changed&&old&&typeof v!=="string"&&typeof old[1]!=="string"){cells=new Set();v.arr.forEach((c,k)=>{if(old[1].arr[k]!==c)cells.add(k)})}
+      const item=el("span","v"+(changed&&!cells?" chg":""));
+      item.appendChild(el("i","",n+" = "));item.appendChild(renderVal(v,cells));row.appendChild(item)});
+    box.appendChild(row);st.appendChild(box);
+  }
+  $("out").textContent=s.txt!==undefined?s.txt:R.outLines.slice(0,s.out).join("\n");
+  const dd=s.stack.length-(p?p.stack.length:1);
+  const top=s.stack[s.stack.length-1].name;
+  $("info").textContent=`Line ${s.line} is about to run. `+(dd>0?`Called ${top}() — stack depth is now ${s.stack.length}.`:dd<0?`Returned — back in ${top==="global"?"global scope":top+"()"}.`:"");
+  $("slider").value=cur;$("cnt").textContent=(cur+1)+" / "+R.steps.length;
+  $("prev").disabled=$("first").disabled=cur===0;$("next").disabled=$("last").disabled=cur===R.steps.length-1;
+}
+$("next").onclick=()=>show(cur+1);$("prev").onclick=()=>show(cur-1);
+$("first").onclick=()=>show(0);$("last").onclick=()=>show(R.steps.length-1);
+$("slider").oninput=e=>show(+e.target.value);
+$("play").onclick=()=>{
+  if(timer){stop();return}
+  if(cur>=R.steps.length-1)show(0);
+  $("play").textContent="⏸ Pause";
+  timer=setInterval(()=>{if(cur>=R.steps.length-1)stop();else show(cur+1)},650);
+};
+document.addEventListener("keydown",e=>{
+  if(!R||e.target===src)return;
+  if(e.key==="ArrowRight")show(cur+1);else if(e.key==="ArrowLeft")show(cur-1);
+});
+</script>
+</body>
+</html>
