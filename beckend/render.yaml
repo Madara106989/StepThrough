@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: stepthrough-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGIN
+        value: "*"   # replace with your Vercel URL, e.g. https://stepthrough.vercel.app
