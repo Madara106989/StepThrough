@@ -429,7 +429,7 @@ async function recordPy(code){
   return {steps:res.steps,outLines:[],error:res.err};
 }
 /* After deploying the backend (see README), paste its URL here, e.g. "https://stepthrough-api.onrender.com" */
-const CPP_API="";
+const CPP_API="https://stepthrough.onrender.com";
 async function recordCpp(code){
   const base=CPP_API||(["localhost","127.0.0.1"].includes(location.hostname)?"http://localhost:8080":"");
   if(!base)throw new Error("C++ needs the backend. Deploy the backend folder and set CPP_API at the top of the script in index.html (see README).");
